@@ -2,12 +2,12 @@ import pandas as pd
 import pyodbc
 import logger
 import numpy as np
-import os
 import yaml
 import sys
 
 
 class DBConfigLoader:
+
     def __init__(self, config_path):
         self.log = logger.get_logger()
         try:
@@ -25,6 +25,7 @@ class DBConfigLoader:
 
 
 class DBExecutor:
+
     def __init__(self, config_path="../db_config.yml"):
         self.conn = None
         self.db_config_loader = DBConfigLoader(config_path)
@@ -35,10 +36,12 @@ class DBExecutor:
         if not self.conn:
             self.log.info("Connecting to db ")
             try:
-                self.conn = pyodbc.connect(f"""DRIVER={db_config['driver']};
-                                              SERVER={db_config['server']};
-                                              DATABASE={db_config['database']};
-                                              UID={db_config['uid']};PWD={db_config['pwd']}""")
+                self.conn = pyodbc.connect(f"""
+                                            DRIVER={db_config['driver']};
+                                            SERVER={db_config['server']};
+                                            DATABASE={db_config['database']};
+                                            UID={db_config['uid']};
+                                            PWD={db_config['pwd']}""")
                 self.log.info("Connection to db created")
             except ConnectionError:
                 self.log.error(f"Connection to database was not created: {ConnectionError}")
@@ -65,7 +68,7 @@ class DBExecutor:
                 self.conn.commit()
                 self.log.info("Query was successfully executed and committed")
             except Exception as e:
-                self.log.error(e)
+                self.log.error(f"There was an error: {e}")
                 self.conn.rollback()
         else:
             raise Exception("No active connection to the DB. Make sure it was established.")
@@ -76,7 +79,7 @@ class DBExecutor:
             try:
                 df = pd.read_sql(query, self.conn).replace(np.nan, 'NULL')
                 return df
-            except ConnectionError:
-                self.log.error(ConnectionError, " No active connection to the DB")
+            except Exception as e:
+                self.log.error(f"There was an error: {e}")
         else:
             raise Exception("No active connection to the DB. Make sure it was established.")

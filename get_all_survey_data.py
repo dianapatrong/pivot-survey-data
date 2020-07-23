@@ -1,33 +1,35 @@
 import pandas as pd
 import logger
+import sys
 from db_executor import DBExecutor
 
 
-class TriggerStoredProcedure:
+class PivotSurveyData:
 
-    def __init__(self):
+    def __init__(self, current_survey_structure='survey_structure.csv'):
         self.db = DBExecutor()
+        self.survey_structure = current_survey_structure
         self.log = logger.get_logger()
 
-    def compare_survey_structure_table(self):
+    def get_data_from_view(self):
         self.db.create_connection()
         db_survey_structure = self.db.execute_pandas_query(self._get_query('survey_structure'))
-        current_survey_structure = None
         try:
-            current_survey_structure = pd.read_csv('current_survey_structure.csv')
+            current_survey_structure = pd.read_csv(self.survey_structure)
         except FileNotFoundError:
-            self.log.error("File current_survey_structure.csv does not exists ")
+            self.log.error(f"File {self.survey_structure} does not exists ")
+            sys.exit(1)
 
         if not current_survey_structure.equals(db_survey_structure):
             new_data = self._get_new_data()
             self._create_or_alter_view(new_data)
-            self._get_data_from_view()
-            self.log.info("Dumping new survey structure into csv")
-            db_survey_structure.to_csv('current_survey_structure.csv', index=False)
+            self._export_view_data_to_csv()
+            self.log.info(f"Dumping new survey structure into {self.survey_structure}")
+            db_survey_structure.to_csv(self.survey_structure, index=False)
         else:
-            self._get_data_from_view()
+            self._export_view_data_to_csv()
 
-    def _get_data_from_view(self):
+    def _export_view_data_to_csv(self):
         self.log.info("Getting data from view: vw_AllSurveyData ")
         view_data = self.db.execute_pandas_query(self._get_query('vw_survey_data'))
         self.log.info("Dumping view data into csv")
@@ -99,10 +101,8 @@ class TriggerStoredProcedure:
                 if index_q != questions.index[-1]:
                     query_in_progress = query_in_progress + ' , '
 
-            # Replace <DYNAMIC_QUESTION_ANSWERS> with query_in_progress
             union_query_block = self._get_query('query_template_outer_union_query').replace('<DYNAMIC_QUESTION_ANSWERS>', query_in_progress)
 
-            # Replace <SURVEY_ID> with survey_id['SurveyId']
             union_query_block = union_query_block.replace('<SURVEY_ID>', str(survey_id['SurveyId']))
 
             final_query = final_query + union_query_block
