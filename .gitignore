@@ -2,4 +2,5 @@
 .idea/
 A19-SE-SQL-Assignment-Description.pdf
 __pycache__/
-
+fresh_survey_data.csv
+venv/*
